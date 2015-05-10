@@ -149,8 +149,8 @@ The time series plot is given below:
 ```r
 myts = ts(avgStepsByInterval$avg)
 minnumber <- floor(avgStepsByInterval$interval/100) * 60 + dataset$interval %% 100
-plot.ts(minnumber, myts, type="l",
-        xlab="Minute number (nth minute of the day)",
+plot.ts(avgStepsByInterval$interval, myts, type="l",
+        xlab="Interval",
         ylab="Average number of steps",
         main="Time Series of Average Steps vs the Minute of the Day")
 ```
@@ -173,7 +173,7 @@ We first calculate the missing values in each column of the data.
 
 ```r
 reportNAcount = function(dataset, col) {
-    cmd = sprintf("nrow(subset(%s, is.na(%s$%s)))", dataset, dataset, col); cmd
+    cmd=sprintf("nrow(subset(%s, is.na(%s$%s)))", dataset, dataset, col);cmd
 }
 ```
 
@@ -285,11 +285,13 @@ avgStepsByIntervalPanel <- cbind(avgStepsByIntervalPanel,
 
 names(avgStepsByIntervalPanel)[4] = "minnumberP"
 attach(avgStepsByIntervalPanel)
-xyplot(avgP~minnumberP|WeekendP,
+xyplot(avgP~avgStepsByIntervalPanel$interval|WeekendP,
         main="Average Steps per Interval on Weekends and Weekdays", 
         ylab="Steps per Interval", 
-        xlab="5 Min Interval Starting at nth Minute of Day",type="l",
+        xlab="5 Min Interval",type="l",
   layout=c(1,2))
 ```
 
 ![](PA1_template_files/figure-html/unnamed-chunk-10-1.png) 
+ 
+ Charts in the panel indicate that there is a difference in the patterns beetween weekdays and weekends.  The weekend activity patern is more spreadout throughout the day while weekday patterns have pockets of concentrated activities.
