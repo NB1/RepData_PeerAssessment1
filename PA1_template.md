@@ -1,9 +1,4 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+# Reproducible Research: Peer Assessment 1
 
 
 ## Loading and preprocessing the data
@@ -11,7 +6,8 @@ This document produces an HTML report for the first peer review project of the M
 
 We will first set up the directories, libraries, a simple constant, and the data.  During these firrst few steps, We will show the executed R code but skip R messages.  We will also creat ea local copy of the data so we do not have to download the file repeatedly.
 
-```{r message=FALSE, echo=TRUE}
+
+```r
 rm(list=ls());require("sqldf");set.seed(1);setwd("c:\\users\\public\\proj1\\")
 
 if (file.exists("./LocalCopyOfData.csv")) {
@@ -60,40 +56,75 @@ is.weekend = function(yyyy_mm_dd) {
 }
 ```
 
-To be sure that the data is loaded correctly, we will show its top `r toplines` lines and display its dimensions:
+To be sure that the data is loaded correctly, we will show its top 3 lines and display its dimensions:
 
-```{r message=FALSE, echo=TRUE}
+
+```r
 head(dataset, toplines)
-dim(dataset)
+```
 
+```
+##   steps       date interval
+## 1    NA 2012-10-01        0
+## 2    NA 2012-10-01        5
+## 3    NA 2012-10-01       10
+```
+
+```r
+dim(dataset)
+```
+
+```
+## [1] 17568     3
 ```
 ## What is mean total number of steps taken per day?
 
 This question is easily answered as  follows:
 
-```{r, echo=TRUE}
+
+```r
 dailyTotalSteps <- sqldf("select date, sum(steps) from dataset group by date")
+```
+
+```
+## Loading required package: tcltk
+```
+
+```r
 names(dailyTotalSteps) <- c("date", "TotSteps")
 head(dailyTotalSteps, toplines)
+```
+
+```
+##         date TotSteps
+## 1 2012-10-01     <NA>
+## 2 2012-10-02      126
+## 3 2012-10-03    11352
+```
+
+```r
 avgSteps <- mypretty(sqldf("select avg(TotSteps) from dailyTotalSteps"))
 ```
 
-The average number of daily total steps is: `r avgSteps`.  In this part of analysis we have ignored the 'na' values in the data as was allowed by the problem statement.
+The average number of daily total steps is: 10766.2.  In this part of analysis we have ignored the 'na' values in the data as was allowed by the problem statement.
 
 
 
 
 **Histogram of daily steps**
 
-```{r, echo=TRUE}
+
+```r
 hist(as.numeric(dailyTotalSteps$TotSteps), col="purple", breaks=25,
           xlab="Step Range", ylab="Number of Days", 
           main = "Distribution of Total Daily Steps", yaxp=c(0,10,2))
 ```
 
+![](PA1_template_files/figure-html/unnamed-chunk-4-1.png) 
+
 **Mean and median of daily total steps**
 
-Continuing to ignore the missing values we find the mean and median of daily total steps to be `r mypretty(mean(as.numeric(dailyTotalSteps$TotSteps), na.rm=TRUE))` and `r mypretty(median(as.numeric(dailyTotalSteps$TotSteps), na.rm=TRUE))` respectively.
+Continuing to ignore the missing values we find the mean and median of daily total steps to be 10766.2 and 10765.0 respectively.
 
 
 
@@ -103,7 +134,8 @@ Continuing to ignore the missing values we find the mean and median of daily tot
 The following r code computes the needed values:
 
 
-```{r echo=TRUE}
+
+```r
 avgStepsByInterval = sqldf("select interval, avg(steps) as avg from dataset group by interval order by interval")
 maxavg = max(avgStepsByInterval[2])
 result <- subset(avgStepsByInterval, avg==maxavg)
@@ -113,7 +145,8 @@ result <- subset(avgStepsByInterval, avg==maxavg)
 
 The time series plot is given below: 
 
-```{r, echo=TRUE}
+
+```r
 myts = ts(avgStepsByInterval$avg)
 minnumber <- floor(avgStepsByInterval$interval/100) * 60 + dataset$interval %% 100
 plot.ts(minnumber, myts, type="l",
@@ -122,12 +155,14 @@ plot.ts(minnumber, myts, type="l",
         main="Time Series of Average Steps vs the Minute of the Day")
 ```
 
+![](PA1_template_files/figure-html/unnamed-chunk-6-1.png) 
+
 
 **Which 5-minute interval, on average, across all days in the data set, contains the maximum number of steps?**
 
 
 To find the 5-minute intervals with maximmum number of steps we first found the maximum value and then subsetted the data.  This was done because more than one 5-minute interval could have the maximum value.
-It turns out that interval `r result[1]` (i.e. `r HHMM(as.numeric(result[1]))`) has the highest number of average steps `r mypretty(result[2])` (rounded to the first decimal point).
+It turns out that interval 835 (i.e. 8:35 HRS) has the highest number of average steps  206.2 (rounded to the first decimal point).
 
 
 
@@ -135,7 +170,8 @@ It turns out that interval `r result[1]` (i.e. `r HHMM(as.numeric(result[1]))`) 
 
 We first calculate the missing values in each column of the data.
 
-```{r, echo=TRUE}
+
+```r
 reportNAcount = function(dataset, col) {
     cmd = sprintf("nrow(subset(%s, is.na(%s$%s)))", dataset, dataset, col); cmd
 }
@@ -143,16 +179,17 @@ reportNAcount = function(dataset, col) {
 
 
 
-Using the above function we find that `r eval(parse(text=reportNAcount("dataset", "interval")))`,
-`r eval(parse(text=reportNAcount("dataset", "steps")))`, and 
-`r eval(parse(text=reportNAcount("dataset", "date")))` rows in columns interval, steps, and date respectively are NAs.
+Using the above function we find that 0,
+2304, and 
+0 rows in columns interval, steps, and date respectively are NAs.
 
 **Replacement of the missing value** 
 
 A very good discussion of missing value imputation is available [here](http://www.stat.columbia.edu/~gelman/arm/missing.pdf "Columbia Reference"). We used the hot-deck imputation method described in the article.  For each row with a missing value in a data-set, the hot-deck method finds another row in the data set which is closest to this row but does not have the value missing.  It uses a random subset of all rows to find a closer neighbor. It then replaces the missing value by the corresponding value in the closest neighbor.
 We defined a distance funtion between any two rows of the data set.  
 
-```{r, echo=TRUE}
+
+```r
 original <- dataset
 if (file.exists("./ImputedData.csv")) {
    imputed <- read.table("./ImputedData.csv")
@@ -178,32 +215,45 @@ if (file.exists("./ImputedData.csv")) {
 }
 NAinImputed <- eval(parse(text=reportNAcount("imputed", "steps")))
 ```
-We verified that the imputed dataset has `r NAinImputed` na rows (variable NAinImputed).
+We verified that the imputed dataset has 0 na rows (variable NAinImputed).
 
 **Histogram with Imputed Data**
 
 The histogram of daily steps with imputed data is as follows:
 
-```{r, echo=TRUE}
+
+```r
 dailyTotalSteps1 <- sqldf("select date, sum(steps) from imputed group by date")
 names(dailyTotalSteps1) <- c("date", "TotSteps")
 head(dailyTotalSteps1, toplines)
+```
+
+```
+##         date TotSteps
+## 1 2012-10-01     8883
+## 2 2012-10-02      126
+## 3 2012-10-03    11352
+```
+
+```r
 hist(as.numeric(dailyTotalSteps1$TotSteps), col="blue", breaks=25,
           xlab="Step Range", ylab="Number of Days", 
           main = "Distribution of Total Daily Steps in Imputed Data", yaxp=c(0,10,2))
 ```
 
+![](PA1_template_files/figure-html/unnamed-chunk-9-1.png) 
+
 
 **Mean and median of daily total steps in Inputed data**
 
-We find the mean and median of daily total steps in imputed data is `r mypretty(mean(as.numeric(dailyTotalSteps1$TotSteps), na.rm=TRUE))` and `r mypretty(median(as.numeric(dailyTotalSteps1$TotSteps), na.rm=TRUE))` respectively.
+We find the mean and median of daily total steps in imputed data is 10750.0 and 10765.0 respectively.
 
 Here is a table to summarize the mean and median values with and without imputing:
 
 | Data Characteristic        | Mean           | Median  |
 | ------------- |:-------------:| -----:|
-| Without Imputing      | `r mypretty(mean(as.numeric(dailyTotalSteps$TotSteps), na.rm=TRUE))` | `r mypretty(median(as.numeric(dailyTotalSteps$TotSteps), na.rm=TRUE))` |
-| With Hot-deck imputing     | `r mypretty(mean(as.numeric(dailyTotalSteps1$TotSteps), na.rm=TRUE))`      |   `r mypretty(median(as.numeric(dailyTotalSteps1$TotSteps), na.rm=TRUE))` |
+| Without Imputing      | 10766.2 | 10765.0 |
+| With Hot-deck imputing     | 10750.0      |   10765.0 |
 
 As expected, the mean and median values change as a result of imputation.
 
@@ -213,13 +263,21 @@ As expected, the mean and median values change as a result of imputation.
 The following code plots the lattice package to display the average steps per interval on weekdays and weekend.
 
 
-```{r, echo=TRUE}
+
+```r
 library(lattice)
 imputed <- cbind(imputed, sapply(imputed$date, FUN=function(x) {is.weekend(x)}))
 names(imputed)[4] <- "Weekend"
 
 avgStepsByIntervalPanel = sqldf("select interval as intervalP, avg(steps) as avgP, Weekend as WeekendP from imputed group by interval, Weekend order by interval")
 dim(avgStepsByIntervalPanel)
+```
+
+```
+## [1] 576   3
+```
+
+```r
 avgStepsByIntervalPanel <- cbind(avgStepsByIntervalPanel, 
     	floor(avgStepsByIntervalPanel$interval/100) * 60 + 
 			avgStepsByIntervalPanel$interval %% 100)
@@ -233,3 +291,5 @@ xyplot(avgP~minnumberP|WeekendP,
         xlab="5 Min Interval Starting at nth Minute of Day",type="l",
   layout=c(1,2))
 ```
+
+![](PA1_template_files/figure-html/unnamed-chunk-10-1.png) 
