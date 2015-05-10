@@ -4,8 +4,9 @@
 ## Loading and preprocessing the data
 This document produces an HTML report for the first peer review project of the May-June, 2015 edition of Coursera reproducible research course.
 
-We will first set up the directories, libraries, a simple constant, and the data.  During these firrst few steps, We will show the executed R code but skip R messages.  We will also creat ea local copy of the data so we do not have to download the file repeatedly.
+We will first set up the directories, libraries, a simple constant, and the data.  During these first few steps, We will show the executed R code but skip R messages.  We will also create a local copy of the data so we do not have to download the file repeatedly.
 
+**Code of loading and making local copies of the data**
 
 ```r
 rm(list=ls());require("sqldf");set.seed(1);setwd("c:\\users\\public\\proj1\\")
@@ -20,8 +21,12 @@ if (file.exists("./LocalCopyOfData.csv")) {
   unlink(temp)
   write.table(dataset, "./LocalCopyOfData.csv")
 }
+```
 
-toplines <- 3
+**Code of functions used throughout the program**
+
+```r
+toplines <- 6 #display only the first few lines to maintain readability
 
 mypretty = function (x) {sprintf("%6.1f", x)}
 
@@ -33,12 +38,12 @@ HHMM = function (x) {
 #distance between two rows for hot-deck imputation
 distance = function(tbl, i, j) {
   if ((i == j) | is.na(tbl[j,1])) {
-    10000;
+    10000; #distance to itself or another NA row is very large
   } else {
     dist = abs(floor(tbl[i,3]/100) * 60 + tbl[i,3] %% 100 -
-              floor(tbl[j,3]/100) * 60 + tbl[j,3] %% 100);
+              floor(tbl[j,3]/100) * 60 + tbl[j,3] %% 100);#distance in minutes
     if (tbl[i,2] != tbl[j,2]) {
-      dist = dist + 120;
+      dist = dist + 120;#additional fixed penalty for a different date
     }
     dist
   }
@@ -48,7 +53,7 @@ distance = function(tbl, i, j) {
 #YYYY-MM-DD and must be a valid date.
 is.weekend = function(yyyy_mm_dd) {
     day <- weekdays(as.Date(yyyy_mm_dd)) 
-    if ((day == "Saturday") || (day == "Saturday")) {
+    if ((day == "Saturday") || (day == "Sunday")) {
       "Weekend"
     } else {
       "Weekday"
@@ -56,7 +61,7 @@ is.weekend = function(yyyy_mm_dd) {
 }
 ```
 
-To be sure that the data is loaded correctly, we will show its top 3 lines and display its dimensions:
+To be sure that the data is loaded correctly, we will show its top 6 lines and display its dimensions:
 
 
 ```r
@@ -68,6 +73,9 @@ head(dataset, toplines)
 ## 1    NA 2012-10-01        0
 ## 2    NA 2012-10-01        5
 ## 3    NA 2012-10-01       10
+## 4    NA 2012-10-01       15
+## 5    NA 2012-10-01       20
+## 6    NA 2012-10-01       25
 ```
 
 ```r
@@ -100,11 +108,15 @@ head(dailyTotalSteps, toplines)
 ## 1 2012-10-01     <NA>
 ## 2 2012-10-02      126
 ## 3 2012-10-03    11352
+## 4 2012-10-04    12116
+## 5 2012-10-05    13294
+## 6 2012-10-06    15420
 ```
 
 ```r
 avgSteps <- mypretty(sqldf("select avg(TotSteps) from dailyTotalSteps"))
 ```
+(only top 6 lines displayed for readability)
 
 The average number of daily total steps is: 10766.2.  In this part of analysis we have ignored the 'na' values in the data as was allowed by the problem statement.
 
@@ -116,11 +128,11 @@ The average number of daily total steps is: 10766.2.  In this part of analysis w
 
 ```r
 hist(as.numeric(dailyTotalSteps$TotSteps), col="purple", breaks=25,
-          xlab="Step Range", ylab="Number of Days", 
+          xlab="Steps Range", ylab="Number of Days", 
           main = "Distribution of Total Daily Steps", yaxp=c(0,10,2))
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-4-1.png) 
+![](PA1_template_files/figure-html/unnamed-chunk-5-1.png) 
 
 **Mean and median of daily total steps**
 
@@ -150,19 +162,19 @@ The time series plot is given below:
 myts = ts(avgStepsByInterval$avg)
 minnumber <- floor(avgStepsByInterval$interval/100) * 60 + dataset$interval %% 100
 plot.ts(avgStepsByInterval$interval, myts, type="l",
-        xlab="Interval",
+        xlab="5-min Interval",
         ylab="Average number of steps",
         main="Time Series of Average Steps vs the Minute of the Day")
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-6-1.png) 
+![](PA1_template_files/figure-html/unnamed-chunk-7-1.png) 
 
 
 **Which 5-minute interval, on average, across all days in the data set, contains the maximum number of steps?**
 
 
 To find the 5-minute intervals with maximmum number of steps we first found the maximum value and then subsetted the data.  This was done because more than one 5-minute interval could have the maximum value.
-It turns out that interval 835 (i.e. 8:35 HRS) has the highest number of average steps  206.2 (rounded to the first decimal point).
+It turns out that interval 835 (i.e. 8:35 HRS) has the highest number of average steps  206.2 (rounded to the first decimal point).  This value is extracted from the variable result given above.
 
 
 
@@ -185,8 +197,10 @@ Using the above function we find that 0,
 
 **Replacement of the missing value** 
 
-A very good discussion of missing value imputation is available [here](http://www.stat.columbia.edu/~gelman/arm/missing.pdf "Columbia Reference"). We used the hot-deck imputation method described in the article.  For each row with a missing value in a data-set, the hot-deck method finds another row in the data set which is closest to this row but does not have the value missing.  It uses a random subset of all rows to find a closer neighbor. It then replaces the missing value by the corresponding value in the closest neighbor.
-We defined a distance funtion between any two rows of the data set.  
+A very good discussion of missing value imputation is available [here](http://www.stat.columbia.edu/~gelman/arm/missing.pdf "Columbia Reference"). We used the hot-deck imputation method described in the article.  For each row with a missing value in a data-set, the hot-deck method finds another row in the data set which is closest to this row but does not have the value missing. It then replaces the missing value by the corresponding value in the closest neighbor. To save 
+computation time we used a .1% subset of the entire data to find the closest neighbor.   We defined a distance funtion between any two rows of the data set. The distance function is given near the top of this document.  The imputation code is bwlow:
+
+**Imputation Code**
 
 
 ```r
@@ -200,7 +214,7 @@ if (file.exists("./ImputedData.csv")) {
     if(is.na(imputed[i,1])) {
       dist = 10000; ind = 1; imputed[i,1]=default;
       for (j in 1:nrow(imputed)) {
-      if (runif(1) < .001) {
+      if (runif(1) < .001) {#save compuation time by using a .1% sample to impute
         thisdist = distance(original, i, j)
         if (dist > thisdist) {
         dist = thisdist;
@@ -233,15 +247,18 @@ head(dailyTotalSteps1, toplines)
 ## 1 2012-10-01     8883
 ## 2 2012-10-02      126
 ## 3 2012-10-03    11352
+## 4 2012-10-04    12116
+## 5 2012-10-05    13294
+## 6 2012-10-06    15420
 ```
 
 ```r
 hist(as.numeric(dailyTotalSteps1$TotSteps), col="blue", breaks=25,
-          xlab="Step Range", ylab="Number of Days", 
+          xlab="Steps Range", ylab="Number of Days", 
           main = "Distribution of Total Daily Steps in Imputed Data", yaxp=c(0,10,2))
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-9-1.png) 
+![](PA1_template_files/figure-html/unnamed-chunk-10-1.png) 
 
 
 **Mean and median of daily total steps in Inputed data**
@@ -250,10 +267,12 @@ We find the mean and median of daily total steps in imputed data is 10750.0 and 
 
 Here is a table to summarize the mean and median values with and without imputing:
 
+
 | Data Characteristic        | Mean           | Median  |
 | ------------- |:-------------:| -----:|
 | Without Imputing      | 10766.2 | 10765.0 |
 | With Hot-deck imputing     | 10750.0      |   10765.0 |
+
 
 As expected, the mean and median values change as a result of imputation.
 
@@ -292,6 +311,6 @@ xyplot(avgP~avgStepsByIntervalPanel$interval|WeekendP,
   layout=c(1,2))
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-10-1.png) 
+![](PA1_template_files/figure-html/unnamed-chunk-11-1.png) 
  
  Charts in the panel indicate that there is a difference in the patterns beetween weekdays and weekends.  The weekend activity patern is more spreadout throughout the day while weekday patterns have pockets of concentrated activities.
