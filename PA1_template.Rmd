@@ -13,7 +13,7 @@ We will first set up the directories, libraries, a simple constant, and the data
 
 **Code of loading and making local copies of the data**
 ```{r message=FALSE, echo=TRUE}
-rm(list=ls());require("sqldf");set.seed(1);setwd("c:\\users\\public\\proj1\\")
+rm(list=ls());require("sqldf");set.seed(1776);setwd("c:\\users\\public\\proj1\\")
 
 if (file.exists("./LocalCopyOfData.csv")) {
    dataset <- read.table("./LocalCopyOfData.csv")

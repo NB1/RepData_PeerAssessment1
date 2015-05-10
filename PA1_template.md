@@ -9,7 +9,7 @@ We will first set up the directories, libraries, a simple constant, and the data
 **Code of loading and making local copies of the data**
 
 ```r
-rm(list=ls());require("sqldf");set.seed(1);setwd("c:\\users\\public\\proj1\\")
+rm(list=ls());require("sqldf");set.seed(1776);setwd("c:\\users\\public\\proj1\\")
 
 if (file.exists("./LocalCopyOfData.csv")) {
    dataset <- read.table("./LocalCopyOfData.csv")
@@ -244,7 +244,7 @@ head(dailyTotalSteps1, toplines)
 
 ```
 ##         date TotSteps
-## 1 2012-10-01     8883
+## 1 2012-10-01    13893
 ## 2 2012-10-02      126
 ## 3 2012-10-03    11352
 ## 4 2012-10-04    12116
@@ -263,7 +263,7 @@ hist(as.numeric(dailyTotalSteps1$TotSteps), col="blue", breaks=25,
 
 **Mean and median of daily total steps in Inputed data**
 
-We find the mean and median of daily total steps in imputed data is 10750.0 and 10765.0 respectively.
+We find the mean and median of daily total steps in imputed data is 10898.4 and 11015.0 respectively.
 
 Here is a table to summarize the mean and median values with and without imputing:
 
@@ -271,7 +271,7 @@ Here is a table to summarize the mean and median values with and without imputin
 | Data Characteristic        | Mean           | Median  |
 | ------------- |:-------------:| -----:|
 | Without Imputing      | 10766.2 | 10765.0 |
-| With Hot-deck imputing     | 10750.0      |   10765.0 |
+| With Hot-deck imputing     | 10898.4      |   11015.0 |
 
 
 As expected, the mean and median values change as a result of imputation.
