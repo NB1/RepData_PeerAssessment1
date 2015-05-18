@@ -69,7 +69,7 @@ img {
 <p>This document produces an HTML report for the first peer review project of the May-June, 2015 edition of Coursera reproducible research course.</p>
 <p>We will first set up the directories, libraries, a simple constant, and the data. During these first few steps, We will show the executed R code but skip R messages. We will also create a local copy of the data so we do not have to download the file repeatedly.</p>
 <p><strong>Code of loading and making local copies of the data</strong></p>
-<pre class="r"><code>rm(list=ls());require(&quot;sqldf&quot;);set.seed(1776);setwd(&quot;c:\\users\\public\\proj1\\&quot;)
+<pre class="r"><code>rm(list=ls());require(&quot;sqldf&quot;);set.seed(1776);setwd(&quot;c:\\users\\public\\proj1&quot;)
 
 if (file.exists(&quot;./LocalCopyOfData.csv&quot;)) {
    dataset &lt;- read.table(&quot;./LocalCopyOfData.csv&quot;)
