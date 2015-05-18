@@ -1,0 +1,231 @@
+---
+title: "Project 1; Coursera Reproducible Research Course"
+author: ""
+date: "Wednesday, May 06, 2015"
+output: html_document
+---
+###Project1
+
+**Set up the data **
+
+This document produces an HTML report for the first peer review project of the May-June, 2015 edition of Coursera reproducible research course.
+
+We will first set up the directories, libraries, a simple constant, and the data.  During these firrst few steps, We will show the executed R code but skip R messages.  We will also creat ea local copy of the data so we do not have to download the file repeatedly.
+
+```{r message=FALSE, echo=TRUE}
+rm(list=ls());require("sqldf");set.seed(1);setwd("c:\\users\\public\\proj1\\")
+
+if (file.exists("./LocalCopyOfData.csv")) {
+   dataset <- read.table("./LocalCopyOfData.csv")
+} else {
+  fileurl <- "http://d396qusza40orc.cloudfront.net/repdata/data/activity.zip"
+  temp <- tempfile()
+  download.file(fileurl, temp)
+  dataset <- read.table(unz(temp, "activity.csv"), sep=",",skip=0, header=TRUE)
+  unlink(temp)
+  write.table(dataset, "./LocalCopyOfData.csv")
+}
+
+toplines <- 3
+
+mypretty = function (x) {sprintf("%6.1f", x)}
+
+#interval to 24 hr clock
+HHMM = function (x) {
+  sprintf("%d:%d HRS", floor(x/100), x %% 100)
+}
+
+#distance between two rows for hot-deck imputation
+distance = function(tbl, i, j) {
+  if ((i == j) | is.na(tbl[j,1])) {
+    10000;
+  } else {
+    dist = abs(floor(tbl[i,3]/100) * 60 + tbl[i,3] %% 100 -
+              floor(tbl[j,3]/100) * 60 + tbl[j,3] %% 100);
+    if (tbl[i,2] != tbl[j,2]) {
+      dist = dist + 120;
+    }
+    dist
+  }
+}
+
+#the input to this function must be an string of the type
+#YYYY-MM-DD and must be a valid date.
+is.weekend = function(yyyy_mm_dd) {
+    day <- weekdays(as.Date(yyyy_mm_dd)) 
+    if ((day == "Saturday") || (day == "Saturday")) {
+      "Weekend"
+    } else {
+      "Weekday"
+    }
+}
+```
+
+To be sure that the data is loaded correctly, we will show its top `r toplines` lines and display its dimensions:
+
+```{r message=FALSE, echo=TRUE}
+head(dataset, toplines)
+dim(dataset)
+
+```
+
+
+**Q1:  What is the mean total number of steps taken per day?**
+
+This question is easily answered as  follows:
+
+```{r, echo=TRUE}
+dailyTotalSteps <- sqldf("select date, sum(steps) from dataset group by date")
+names(dailyTotalSteps) <- c("date", "TotSteps")
+head(dailyTotalSteps, toplines)
+avgSteps <- mypretty(sqldf("select avg(TotSteps) from dailyTotalSteps"))
+```
+
+The average number of daily total steps is: `r avgSteps`.  In this part of analysis we have ignored the 'na' values in the data as was allowed by the problem statement.
+
+**Histogram of daily steps**
+
+```{r, echo=TRUE}
+hist(as.numeric(dailyTotalSteps$TotSteps), col="purple", breaks=25,
+          xlab="Step Range", ylab="Number of Days", 
+          main = "Distribution of Total Daily Steps", yaxp=c(0,10,2))
+```
+
+**Mean and median of daily total steps**
+
+Continuing to ignore the missing values we find the mean and median of daily total steps to be `r mypretty(mean(as.numeric(dailyTotalSteps$TotSteps), na.rm=TRUE))` and `r mypretty(median(as.numeric(dailyTotalSteps$TotSteps), na.rm=TRUE))` respectively.
+
+**Q2:  What is the average daily activity pattern?**
+
+The following r code computes the needed values:
+
+
+```{r echo=TRUE}
+avgStepsByInterval = sqldf("select interval, avg(steps) as avg from dataset group by interval order by interval")
+maxavg = max(avgStepsByInterval[2])
+result <- subset(avgStepsByInterval, avg==maxavg)
+```
+
+**Time-series plot of average steps (averaged over all days)**
+
+The time series plot is given below: 
+
+```{r, echo=TRUE}
+myts = ts(avgStepsByInterval$avg)
+minnumber <- floor(avgStepsByInterval$interval/100) * 60 + dataset$interval %% 100
+plot.ts(minnumber, myts, type="l",
+        xlab="Minute number (nth minute of the day)",
+        ylab="Average number of steps",
+        main="Time Series of Average Steps vs the Minute of the Day")
+```
+
+
+**Which 5-minute interval, on average, across all days in the data set, contains the maximum number of steps?**
+
+
+To find the 5-minute intervals with maximmum number of steps we first found the maximum value and then subsetted the data.  This was done because more than one 5-minute interval could have the maximum value.
+It turns out that interval `r result[1]` (i.e. `r HHMM(as.numeric(result[1]))`) has the highest number of average steps `r mypretty(result[2])` (rounded to the first decimal point).
+
+**Q3 Imputing missing values**
+We first calculate the missing values in each column of the data.
+
+```{r, echo=TRUE}
+reportNAcount = function(dataset, col) {
+    cmd = sprintf("nrow(subset(%s, is.na(%s$%s)))", dataset, dataset, col); cmd
+}
+```
+
+
+
+Using the above function we find that `r eval(parse(text=reportNAcount("dataset", "interval")))`,
+`r eval(parse(text=reportNAcount("dataset", "steps")))`, and 
+`r eval(parse(text=reportNAcount("dataset", "date")))` rows in columns interval, steps, and date respectively are NAs.
+
+**Replacement of the missing value** 
+
+A very good discussion of missing value imputation is available [here](http://www.stat.columbia.edu/~gelman/arm/missing.pdf "Columbia Reference"). We used the hot-deck imputation method described in the article.  For each row with a missing value in a data-set, the hot-deck method finds another row in the data set which is closest to this row but does not have the value missing.  It uses a random subset of all rows to find a closer neighbor. It then replaces the missing value by the corresponding value in the closest neighbor.
+We defined a distance funtion between any two rows of the data set.  
+
+```{r, echo=TRUE}
+original <- dataset
+if (file.exists("./ImputedData.csv")) {
+   imputed <- read.table("./ImputedData.csv")
+} else {
+  imputed   <- dataset #will be modified
+  default = sqldf("select avg(steps) from dataset"); ind=0
+  for (i in 1:nrow(imputed)) {
+    if(is.na(imputed[i,1])) {
+      dist = 10000; ind = 1; imputed[i,1]=default;
+      for (j in 1:nrow(imputed)) {
+      if (runif(1) < .001) {
+        thisdist = distance(original, i, j)
+        if (dist > thisdist) {
+        dist = thisdist;
+        ind = j;
+        imputed[i,1] = original[j,1]
+       }
+      }
+    }
+   }
+  }
+  write.table(imputed, "./ImputedData.csv")
+}
+NAinImputed <- eval(parse(text=reportNAcount("imputed", "steps")))
+```
+We verified that the imputed dataset has `r NAinImputed` na rows (variable NAinImputed).
+
+**Histogram with Imputed Data**
+
+The histogram of daily steps with imputed data is as follows:
+
+```{r, echo=TRUE}
+dailyTotalSteps1 <- sqldf("select date, sum(steps) from imputed group by date")
+names(dailyTotalSteps1) <- c("date", "TotSteps")
+head(dailyTotalSteps1, toplines)
+hist(as.numeric(dailyTotalSteps1$TotSteps), col="blue", breaks=25,
+          xlab="Step Range", ylab="Number of Days", 
+          main = "Distribution of Total Daily Steps in Imputed Data", yaxp=c(0,10,2))
+```
+
+
+**Mean and median of daily total steps in Inputed data**
+
+We find the mean and median of daily total steps in imputed data is `r mypretty(mean(as.numeric(dailyTotalSteps1$TotSteps), na.rm=TRUE))` and `r mypretty(median(as.numeric(dailyTotalSteps1$TotSteps), na.rm=TRUE))` respectively.
+
+Here is a table to summarize the mean and median values with and without imputing:
+
+| Data Characteristic        | Mean           | Median  |
+| ------------- |:-------------:| -----:|
+| Without Imputing      | `r mypretty(mean(as.numeric(dailyTotalSteps$TotSteps), na.rm=TRUE))` | `r mypretty(median(as.numeric(dailyTotalSteps$TotSteps), na.rm=TRUE))` |
+| With Hot-deck imputing     | `r mypretty(mean(as.numeric(dailyTotalSteps1$TotSteps), na.rm=TRUE))`      |   `r mypretty(median(as.numeric(dailyTotalSteps1$TotSteps), na.rm=TRUE))` |
+
+As expected, the mean and median values change as a result of imputation.
+
+**Panel plots by Weekdays and Weekend**
+
+The following code plots the lattice package to display the average steps per interval on weekdays and weekend.
+
+
+```{r, echo=TRUE}
+library(lattice)
+imputed <- cbind(imputed, sapply(imputed$date, FUN=function(x) {is.weekend(x)}))
+names(imputed)[4] <- "Weekend"
+
+avgStepsByIntervalPanel = sqldf("select interval as intervalP, avg(steps) as avgP, Weekend as WeekendP from imputed group by interval, Weekend order by interval")
+dim(avgStepsByIntervalPanel)
+avgStepsByIntervalPanel <- cbind(avgStepsByIntervalPanel, 
+    	floor(avgStepsByIntervalPanel$interval/100) * 60 + 
+			avgStepsByIntervalPanel$interval %% 100)
+
+
+names(avgStepsByIntervalPanel)[4] = "minnumberP"
+attach(avgStepsByIntervalPanel)
+xyplot(avgP~minnumberP|WeekendP,
+        main="Average Steps per Interval on Weekends and Weekdays", 
+        ylab="Steps per Interval", 
+        xlab="5 Min Interval Starting at nth Minute of Day",type="l",
+  layout=c(1,2))
+
+
+
+```

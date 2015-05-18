@@ -1,0 +1,6 @@
+avgStepsByIntervalPanel = sqldf("select interval, avg(steps) as avg from imputed group by weekend, interval")
+
+
+xyplot(avg~interval|Weekend,
+        main="Scatterplots by Cylinders and Gears", 
+        ylab="Miles per Gallon", xlab="Car Weight")
